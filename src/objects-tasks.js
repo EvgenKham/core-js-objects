@@ -207,8 +207,14 @@ function sellTickets(queue) {
  *    console.log(r.height);      // => 20
  *    console.log(r.getArea());   // => 200
  */
-function Rectangle(/* width, height */) {
-  throw new Error('Not implemented');
+function Rectangle(width, height) {
+  const rect = {};
+  rect.width = width;
+  rect.height = height;
+  rect.getArea = function getArea() {
+    return this.width * this.height;
+  };
+  return rect;
 }
 
 /**
@@ -221,8 +227,8 @@ function Rectangle(/* width, height */) {
  *    [1,2,3]   =>  '[1,2,3]'
  *    { height: 10, width: 20 } => '{"height":10,"width":20}'
  */
-function getJSON(/* obj */) {
-  throw new Error('Not implemented');
+function getJSON(obj) {
+  return JSON.stringify(obj);
 }
 
 /**
@@ -236,8 +242,10 @@ function getJSON(/* obj */) {
  *    const r = fromJSON(Circle.prototype, '{"radius":10}');
  *
  */
-function fromJSON(/* proto, json */) {
-  throw new Error('Not implemented');
+function fromJSON(proto, json) {
+  const obj = Object.create(proto);
+  const parse = JSON.parse(json);
+  return Object.assign(obj, parse);
 }
 
 /**
@@ -266,8 +274,16 @@ function fromJSON(/* proto, json */) {
  *      { country: 'Russia',  city: 'Saint Petersburg' }
  *    ]
  */
-function sortCitiesArray(/* arr */) {
-  throw new Error('Not implemented');
+function sortCitiesArray(arr) {
+  return arr.sort((a, b) => {
+    if (a.country > b.country) {
+      return 1;
+    }
+    if (a.country === b.country && a.city > b.city) {
+      return 1;
+    }
+    return -1;
+  });
 }
 
 /**
@@ -300,8 +316,21 @@ function sortCitiesArray(/* arr */) {
  *    "Poland" => ["Lodz"]
  *   }
  */
-function group(/* array, keySelector, valueSelector */) {
-  throw new Error('Not implemented');
+function group(array, keySelector, valueSelector) {
+  const result = new Map();
+
+  array.forEach((item) => {
+    const key = keySelector(item);
+    const value = valueSelector(item);
+
+    if (!result.has(key)) {
+      result.set(key, []);
+    }
+
+    result.get(key).push(value);
+  });
+
+  return result;
 }
 
 /**
@@ -358,35 +387,181 @@ function group(/* array, keySelector, valueSelector */) {
  *  For more examples see unit tests.
  */
 
+const ORDER = {
+  element: 1,
+  id: 2,
+  class: 3,
+  attr: 4,
+  pseudoClass: 5,
+  pseudoElement: 6,
+};
+
+class Selector {
+  constructor() {
+    this.selectors = [];
+    this.usedElements = {
+      element: false,
+      id: false,
+      pseudoElement: false,
+    };
+    this.order = 0;
+  }
+
+  element(value) {
+    if (this.usedElements.element) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    }
+    if (this.order > ORDER.element) {
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    this.selectors.push(value);
+    this.usedElements.element = true;
+    this.order = ORDER.element;
+    return this;
+  }
+
+  id(value) {
+    if (this.usedElements.id) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    }
+    if (this.order > ORDER.id) {
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    this.selectors.push(`#${value}`);
+    this.usedElements.id = true;
+    this.order = ORDER.id;
+    return this;
+  }
+
+  class(value) {
+    if (this.order > ORDER.class) {
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    this.order = ORDER.class;
+    this.selectors.push(`.${value}`);
+    return this;
+  }
+
+  attr(value) {
+    if (this.order > ORDER.attr) {
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    this.order = ORDER.attr;
+    this.selectors.push(`[${value}]`);
+    return this;
+  }
+
+  pseudoClass(value) {
+    if (this.order > ORDER.pseudoClass) {
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    this.order = ORDER.pseudoClass;
+    this.selectors.push(`:${value}`);
+    return this;
+  }
+
+  pseudoElement(value) {
+    if (this.usedElements.pseudoElement) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    }
+    if (this.order > ORDER.pseudoElement) {
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    this.order = ORDER.pseudoElement;
+    this.selectors.push(`::${value}`);
+    this.usedElements.pseudoElement = true;
+    return this;
+  }
+
+  combination(selectorA, combinator, selectorB) {
+    this.selectors.push(selectorA.stringify());
+    this.selectors.push(` ${combinator} `);
+    this.selectors.push(selectorB.stringify());
+    return this;
+  }
+
+  stringify() {
+    return this.selectors.join('');
+  }
+}
+
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+  element(value) {
+    return new Selector().element(value);
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    return new Selector().id(value);
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  class(value) {
+    return new Selector().class(value);
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  attr(value) {
+    return new Selector().attr(value);
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  pseudoClass(value) {
+    return new Selector().pseudoClass(value);
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  pseudoElement(value) {
+    return new Selector().pseudoElement(value);
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  combine(selectorA, combinator, selectorB) {
+    return new Selector().combination(selectorA, combinator, selectorB);
+  },
+
+  stringify() {
+    return new Selector().stringify();
   },
 };
+
+// const builder = cssSelectorBuilder;
+// console.log(
+//   builder.id('main').class('container').class('editable').stringify()
+// ); // '#main.container.editable'
+// console.log(
+//   builder.element('a').attr('href$=".png"').pseudoClass('focus').stringify()
+// ); // 'a[href$=".png"]:focus'
+
+// console.log(
+//   builder
+//     .combine(
+//       builder.element('div').id('main').class('container').class('draggable'),
+//       '+',
+//       builder.combine(
+//         builder.element('table').id('data'),
+//         '~',
+//         builder.combine(
+//           builder.element('tr').pseudoClass('nth-of-type(even)'),
+//           ' ',
+//           builder.element('td').pseudoClass('nth-of-type(even)')
+//         )
+//       )
+//     )
+//     .stringify()
+// ); // 'div#main.container.draggable + table#data ~ tr:nth-of-type(even)   td:nth-of-type(even)'
 
 module.exports = {
   shallowCopy,
